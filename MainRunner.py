@@ -2,8 +2,21 @@
 from common.Excel import Reader,Writer
 from inter.interkeys import HTTP
 import inspect
+from common import logger,config
+from common.mysql import Mysql
+import time
+from common.mail import Mail
+from common.excelresult import Res
+from common.txt import Txt
 
-print('我的数据驱动测试框架')
+logger.info('我的数据驱动测试框架')
+#读取配置文件信息
+config.get_config('./conf/conf.properties')
+logger.info(config.config)
+
+#初始化数据库
+mysql = Mysql()
+mysql.init_mysql('./conf/userinfo.sql')
 
 def runcase(line,obj):
     """
@@ -32,13 +45,18 @@ def runcase(line,obj):
         print('暂不支持超过3个参数的关键字')
 #逐行读取excel内容
 reader = Reader()
+casename = 'HTTP接口用例_gmd'
 #打开Excel
-reader.open_excel('./lib/HTTP接口用例_gmd.xls')
+reader.open_excel('./lib/%s.xls' % casename)
 #调用write函数，给出复制路径
 writer = Writer()
-writer.copy_open('./lib/HTTP接口用例_gmd.xls', './lib/result-HTTP接口用例_gmd.xls')
+writer.copy_open('./lib/%s.xls' % casename, './lib/result-%s.xls' % casename)
 #获取Excel的sheet内容
 sheetname = reader.get_sheets()
+writer.set_sheet(sheetname[0])
+starttime = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+writer.write(1,3,starttime)
+
 #读取excel坐标（1，1）的数据，查看执行用例对象
 reader.readline()
 casetype = reader.readline()[1]
@@ -64,6 +82,39 @@ for sheet in sheetname:
         if len(line[0]) > 0 or len(line[1]) > 0:
             pass
         else:
-            print(line)
+            logger.info(line)
             runcase(line,obj)
+writer.set_sheet(sheetname[0])
+endtime = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+writer.write(1,4,endtime)
 writer.save_close()
+
+#结果统计
+res = Res()
+details = res.get_res('./lib/result-%s.xls' % casename)
+groups = res.get_groups('./lib/result-%s.xls' % casename)
+
+#发送邮件
+mail = Mail()
+htmlmodule = Txt('./conf/'+config.config['mailtxt'])
+html = htmlmodule.read()[0]
+print(html)
+# 对模块文本进行处理
+# 替换总体统计信息
+sumlist = ['status','passrate','starttime','endtime']
+for s in sumlist:
+    html = html.replace(s,details[s])
+
+# 生成HTML的一行内容
+alltrs = ''
+for s in groups:
+    tr = '<tr><td width="100" height="28" align="center" bgcolor="#FFFFFF" style="border:1px solid #ccc;">分组信息</td><td width="80" height="28" align="center" bgcolor="#FFFFFF" style="border:1px solid #ccc;">用例总数</td><td width="80" align="center" bgcolor="#FFFFFF" style="border:1px solid #ccc;">通过数</td><td width="80" align="center" bgcolor="#FFFFFF" style="border:1px solid #ccc;">状态</td></tr>'
+    tr = tr.replace('分组信息',str(s[0]))
+    tr = tr.replace('用例总数', str(s[1]))
+    tr = tr.replace('通过数', str(s[2]))
+    tr = tr.replace('状态', str(s[3]))
+    alltrs += tr
+
+html = html.replace('mailbody',alltrs)
+
+mail.send(html)

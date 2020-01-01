@@ -1,9 +1,9 @@
 # coding=utf-8
 import requests,json
-
+from common import logger
 
 '''
-将接口封装,request接口自动化基础库封装
+将接口封装,request接口自动化基础库封装；添加关联
 excel数据驱动和反射，改造关键字，写入实际结果和异常信息
 '''
 class HTTP:
@@ -138,7 +138,7 @@ class HTTP:
 
                 params =params.replace('{'+keys+'}',self.relations[keys])
                 # print(params)
-                print(self.relations)
+                # print(self.relations)
 
         return params
 
@@ -158,10 +158,11 @@ class HTTP:
         #value添加关联
         value = self.__get_relations(value)
         if str(res) == str(value):
+            logger.info('PASS')
             self.__writer_excel('PASS',res)
             return True
         else:
-            print('Fail')
+            logger.info('Fail')
             self.__writer_excel('FAIL', res)
             return False
 

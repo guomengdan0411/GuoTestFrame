@@ -19,6 +19,7 @@ class Mysql:
         for key in self.mysql_config:
             try:
                 self.mysql_config[key] = config.config[key]
+
             except Exception as e:
                 logger.exception(e)
         # 把端口处理为整数
@@ -42,7 +43,10 @@ class Mysql:
                 elif line.startswith('DROP'):
                     sql_list.append(line.replace('DROP', 'TRUNCATE').replace(' IF EXISTS', '').replace('\n', ''))
                 # 如果是插入语句，也删除末尾的换行
-                elif line.startswith('INSERT'):
+                elif line.startswith('INSERT') or ('insert'):
+                    sql_list.append(line.replace('\n', ''))
+                # 如果是删除语句，也删除末尾的换行
+                elif line.startswith('DELETE') or ('delete'):
                     sql_list.append(line.replace('\n', ''))
                 # 如果是其他语句，就忽略
                 else:
@@ -76,7 +80,7 @@ class Mysql:
 
 # 调试代码
 if __name__ == '__main__':
-    config.get_config('../lib/conf/conf.txt')
-    # logger.info(config.config)
+    config.get_config('../conf/conf.properties')
+    logger.info(config.config)
     mysql = Mysql()
-    mysql.init_mysql('C:\\Users\\Will\\Desktop\\userinfo.sql')
+    mysql.init_mysql('../conf/userinfo.sql')
